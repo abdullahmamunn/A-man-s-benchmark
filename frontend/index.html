@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A Man's Benchmark</title>
+  <meta name="description" content="Personal growth workspace. Academy first. Beat your own records. Evidence over feelings.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="gate" id="gate">
+    <section class="card gate-card">
+      <div class="brand">
+        <div class="brand-mark">AMB</div>
+        <div>
+          <div class="brand-name">A Man's Benchmark</div>
+          <div class="brand-tag">Your workspace</div>
+        </div>
+      </div>
+      <p class="law">Beat your former limits. Academy first. Evidence over feelings.</p>
+      <div class="gate-switch" role="tablist">
+        <button type="button" id="tab-create" class="nav-btn active">Create account</button>
+        <button type="button" id="tab-signin" class="nav-btn">Sign in</button>
+      </div>
+      <form id="register-form" class="stack">
+        <label class="field">Name
+          <input name="student_name" required autocomplete="name">
+        </label>
+        <label class="field">Email
+          <input name="email" type="email" required autocomplete="email">
+        </label>
+        <label class="field">Password
+          <span class="hint">At least 8 characters. This account is only yours.</span>
+          <input name="password" type="password" required autocomplete="new-password">
+        </label>
+        <button class="btn" type="submit">Create account</button>
+      </form>
+      <form id="login-form" class="stack" hidden>
+        <label class="field">Email
+          <input name="email" type="email" required autocomplete="email">
+        </label>
+        <label class="field">Password
+          <input name="password" type="password" required autocomplete="current-password">
+        </label>
+        <button class="btn" type="submit">Sign in</button>
+      </form>
+      <p class="demo-note">Demo workspaces, already filled: <strong>reduan@mail.com</strong> (Geology) and <strong>amamun@mail.com</strong> (CSE). Password <code>Demo-student-2026</code>.</p>
+      <p class="error-text" id="gate-error"></p>
+    </section>
+  </div>
+  <div class="app" id="workspace" hidden>
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark">AMB</div>
+        <div>
+          <div class="brand-name">A Man's Benchmark</div>
+          <div class="brand-tag">Personal workspace</div>
+        </div>
+      </div>
+      <div class="status-pill">
+        <span class="dot" aria-hidden="true"></span>
+        <span id="profile-status">Loading profile</span>
+      </div>
+      <p class="law">Beat your former limits. Academy first. Evidence over feelings.</p>
+      <nav aria-label="Workspace">
+        <button type="button" class="nav-btn active" data-tab="overview">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect></svg>
+          <span>Overview</span>
+        </button>
+        <button type="button" class="nav-btn" data-tab="priorities">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"></path><path d="M4 6h.01M4 12h.01M4 18h.01"></path></svg>
+          <span>Priorities</span>
+        </button>
+        <button type="button" class="nav-btn" data-tab="scoreboard">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h16"></path><path d="M8 16v-5M12 16V8M16 16v-3"></path></svg>
+          <span>Scoreboard</span>
+        </button>
+        <button type="button" class="nav-btn" data-tab="reflection">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12v16H6z"></path><path d="M9 8h6M9 12h6M9 16h3"></path></svg>
+          <span>Reflection</span>
+        </button>
+        <button type="button" class="nav-btn" data-tab="study">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 8v5l3 2"></path></svg>
+          <span>Study</span>
+        </button>
+        <button type="button" class="nav-btn" data-tab="settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"></path></svg>
+          <span>Settings</span>
+        </button>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="profile-name" id="profile-name">—</div>
+        <div class="profile-major" id="profile-major">Loading profile</div>
+        <div id="api-badge" class="badge">Checking workspace</div>
+        <button type="button" class="linkish" id="logout-btn">Sign out</button>
+      </div>
+    </aside>
+    <div class="backdrop" id="backdrop"></div>
+    <div class="main">
+      <header class="topbar">
+        <button type="button" class="menu-btn" id="menu-btn" aria-label="Open navigation" aria-expanded="false">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+        </button>
+        <div class="topbar-title" id="topbar-title">Overview</div>
+        <div class="topbar-date" id="topbar-date"></div>
+      </header>
+      <main class="content" id="content">
+        <p class="loading">Loading workspace…</p>
+      </main>
+    </div>
+  </div>
+  <div id="modal-root"></div>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/overview.js"></script>
+  <script src="js/priorities.js"></script>
+  <script src="js/scoreboard.js"></script>
+  <script src="js/reflection.js"></script>
+  <script src="js/study.js"></script>
+  <script src="js/settings.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      App.start();
+    });
+  </script>
+</body>
+</html>

@@ -1,14 +1,17 @@
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
 from rest_framework import serializers
-from .models import Task, ScoreArea, WeeklyScore, StudySession, WeeklyReview, UserSettings
+
+from .models import ScoreArea, StudySession, Task, UserSettings, WeeklyReview, WeeklyScore
 
 class TaskSerializer(serializers.ModelSerializer):
     class Meta:
         model = Task
         fields = [
             'id', 'title', 'description', 'category', 'priority',
-            'due_date', 'status', 'created_at', 'updated_at'
+            'due_date', 'status', 'completed_at', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'completed_at', 'created_at', 'updated_at']
 
     def validate_title(self, value):
         if not value or not value.strip():
@@ -76,5 +79,12 @@ class UserSettingsSerializer(serializers.ModelSerializer):
             'student_name', 'aspiration', 'major', 'gpa_target',
             'current_execution_rate', 'target_execution_rate',
             'weekly_study_pr_hours', 'longest_session_pr_minutes',
-            'weekly_intention'
+            'timezone', 'weekly_intention'
         ]
+
+    def validate_timezone(self, value):
+        try:
+            ZoneInfo(value)
+        except ZoneInfoNotFoundError as exc:
+            raise serializers.ValidationError('Choose a valid timezone.') from exc
+        return value

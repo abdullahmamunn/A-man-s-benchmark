@@ -9,6 +9,24 @@ import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def _load_env_file(path: Path) -> None:
+    """Load a local .env without adding a dependency. Empty values are skipped."""
+    if not path.is_file():
+        return
+    for raw in path.read_text(encoding='utf-8').splitlines():
+        line = raw.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        key, value = line.split('=', 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and value and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_env_file(BASE_DIR.parent / '.env')
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
@@ -69,12 +87,14 @@ WSGI_APPLICATION = 'benchmark_project.wsgi.app'
 ASGI_APPLICATION = 'benchmark_project.asgi.application'
 
 # Database configuration
-# Uses DATABASE_URL for PostgreSQL (Neon/Supabase) with automatic fallback to SQLite for local development
+# Uses DATABASE_URL for PostgreSQL (Neon) with automatic fallback to SQLite for local development.
+# Vercel functions must not hold a connection open between invocations.
+_on_vercel = os.environ.get('VERCEL') == '1'
 DATABASES = {
     'default': dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600,
-        conn_health_checks=True,
+        conn_max_age=0 if _on_vercel else 600,
+        conn_health_checks=not _on_vercel,
     )
 }
 
@@ -100,19 +120,31 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, '..', 'frontend'),
 ]
 
-# WhiteNoise storage configuration with compression
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Keep original CSS/JS filenames so index.html can reference css/ and js/ directly.
+# Manifest storage would rename those files and break the shell.
+_static_backend = (
+    'django.contrib.staticfiles.storage.StaticFilesStorage'
+    if DEBUG
+    else 'whitenoise.storage.CompressedStaticFilesStorage'
+)
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': _static_backend,
+    },
+}
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Django REST Framework configuration
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny', # Demo / public workspace with session-fallback user scoping
+        'rest_framework.permissions.IsAuthenticated',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.BasicAuthentication',
     ],
     'DATETIME_FORMAT': '%Y-%m-%dT%H:%M:%SZ',
 }
@@ -126,3 +158,9 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8000',
     'http://localhost:3000',
 ]
+
+# Vercel terminates HTTPS. Trust the forwarded protocol so secure cookies match the browser.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True

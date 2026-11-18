@@ -1,6 +1,7 @@
-from django.db import models
 from django.contrib.auth.models import User
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
+from django.utils import timezone
 
 class TaskCategory(models.TextChoices):
     UNIVERSITY_COURSEWORK = 'University Coursework', 'University Coursework (Academy #1)'
@@ -26,15 +27,27 @@ class Task(models.Model):
     Task model with Academy First priority support.
     University Coursework strictly takes precedence over other categories.
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='tasks')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tasks')
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, help_text="Standard of Completion (Definition of Done)")
     category = models.CharField(max_length=64, choices=TaskCategory.choices, default=TaskCategory.UNIVERSITY_COURSEWORK)
     priority = models.CharField(max_length=16, choices=TaskPriority.choices, default=TaskPriority.HIGH)
     due_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=TaskStatus.choices, default=TaskStatus.PENDING)
+    completed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if self.status == TaskStatus.COMPLETED:
+            if self.completed_at is None:
+                self.completed_at = timezone.now()
+        else:
+            self.completed_at = None
+        update_fields = kwargs.get('update_fields')
+        if update_fields is not None:
+            kwargs['update_fields'] = set(update_fields) | {'completed_at'}
+        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ['due_date', '-created_at']
@@ -69,7 +82,7 @@ class WeeklyScore(models.Model):
     Database constraint prevents duplicate scores for the same pillar and week.
     Mandatory objective evidence field enforces 'Evidence Over Feelings'.
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='weekly_scores')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='weekly_scores')
     score_area = models.ForeignKey(ScoreArea, on_delete=models.CASCADE, related_name='scores')
     week_start = models.DateField(help_text="Monday of the evaluation week (YYYY-MM-DD)")
     rating = models.PositiveSmallIntegerField(
@@ -97,7 +110,7 @@ class StudySession(models.Model):
     Deep cognitive work session log.
     Used for 7-day, 30-day, all-time KPIs and Personal Record (PR) calculations.
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='study_sessions')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='study_sessions')
     subject = models.CharField(max_length=128)
     date = models.DateField()
     duration_minutes = models.PositiveIntegerField(help_text="Duration in minutes")
@@ -115,7 +128,7 @@ class WeeklyReview(models.Model):
     Structured Weekly Reflection & Debrief.
     Includes accomplishments, failures, distractions, lessons learned, and 3 Non-Negotiable priorities.
     """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True, related_name='weekly_reviews')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='weekly_reviews')
     week_start = models.DateField()
     accomplishments = models.TextField(blank=True)
     failures = models.TextField(blank=True)
@@ -141,19 +154,17 @@ class UserSettings(models.Model):
     """
     Personal benchmark settings and personal records (PRs) to beat.
     """
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True, related_name='benchmark_settings')
-    student_name = models.CharField(max_length=128, default="Alexander Vance")
-    aspiration = models.CharField(max_length=255, default="Theoretical Physicist & Research Scientist")
-    major = models.CharField(max_length=128, default="Honors Physics & Pure Mathematics")
-    gpa_target = models.CharField(max_length=32, default="3.95 / 4.00")
-    current_execution_rate = models.FloatField(default=77.8)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='benchmark_settings')
+    student_name = models.CharField(max_length=128, blank=True, default="")
+    aspiration = models.CharField(max_length=255, blank=True, default="")
+    major = models.CharField(max_length=128, blank=True, default="")
+    gpa_target = models.CharField(max_length=32, blank=True, default="")
+    current_execution_rate = models.FloatField(default=0)
     target_execution_rate = models.FloatField(default=90.0)
-    weekly_study_pr_hours = models.FloatField(default=44.0)
-    longest_session_pr_minutes = models.PositiveIntegerField(default=255)
-    weekly_intention = models.CharField(
-        max_length=255,
-        default="Dominate Advanced Electrodynamics Midterm & Surpass 44-hr Deep Work PR"
-    )
+    weekly_study_pr_hours = models.FloatField(default=0)
+    longest_session_pr_minutes = models.PositiveIntegerField(default=0)
+    timezone = models.CharField(max_length=64, default="Asia/Dhaka")
+    weekly_intention = models.CharField(max_length=255, blank=True, default="")
 
     def __str__(self):
         return f"Settings for {self.student_name}"

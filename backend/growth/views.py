@@ -1,6 +1,5 @@
-from datetime import datetime, timedelta
-from django.db.models import Sum, Max, Avg, Q, Case, When, Value, IntegerField
-from django.utils import timezone
+from datetime import timedelta
+from django.db.models import Sum, Max, Q, Case, When, Value, IntegerField
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -14,10 +13,10 @@ from .serializers import (
     TaskSerializer, ScoreAreaSerializer, WeeklyScoreSerializer,
     StudySessionSerializer, WeeklyReviewSerializer, UserSettingsSerializer
 )
+from .time import local_today
 
 def get_request_user(request):
-    """Helper to return authenticated user or None for demo workspace isolation"""
-    return request.user if request.user.is_authenticated else None
+    return request.user
 
 class TaskViewSet(viewsets.ModelViewSet):
     """
@@ -206,12 +205,12 @@ class DashboardSummaryView(APIView):
         settings_obj.save(update_fields=['current_execution_rate'])
 
         # 2. Study Session calculations (Current 7 days vs Prior 7 days)
-        today = timezone.now().date()
+        today = local_today(settings_obj)
         seven_days_ago = today - timedelta(days=7)
         fourteen_days_ago = today - timedelta(days=14)
 
         current_week_mins = StudySession.objects.filter(
-            user=user, date__gte=seven_days_ago
+            user=user, date__gte=seven_days_ago, date__lte=today
         ).aggregate(total=Sum('duration_minutes'))['total'] or 0
 
         prior_week_mins = StudySession.objects.filter(
@@ -224,7 +223,7 @@ class DashboardSummaryView(APIView):
         delta_percent = round(((current_week_hours - prior_week_hours) / prior_week_hours) * 100) if prior_week_hours > 0 else 0
 
         longest_session_mins = StudySession.objects.filter(
-            user=user, date__gte=seven_days_ago
+            user=user, date__gte=seven_days_ago, date__lte=today
         ).aggregate(longest=Max('duration_minutes'))['longest'] or 0
 
         # 3. Scoreboard preview
@@ -233,22 +232,22 @@ class DashboardSummaryView(APIView):
         recent_ratings = []
         for p in pillars:
             latest_score = WeeklyScore.objects.filter(user=user, score_area=p).order_by('-week_start').first()
-            rating = latest_score.rating if latest_score else 3
-            recent_ratings.append(rating)
+            if latest_score:
+                recent_ratings.append(latest_score.rating)
             scoreboard_preview.append({
                 'id': p.id,
                 'title': p.title,
                 'code': p.code,
                 'priority_tag': p.priority_tag,
-                'rating': rating,
+                'rating': latest_score.rating if latest_score else 0,
                 'evidence': latest_score.evidence if latest_score else "No evaluation logged."
             })
 
-        scoreboard_avg = round(sum(recent_ratings) / len(recent_ratings), 1) if recent_ratings else 3.5
+        scoreboard_avg = round(sum(recent_ratings) / len(recent_ratings), 1) if recent_ratings else 0
 
         # 4. Limit-Breaker Index: 40% Academy, 35% Study PR, 25% Pillar Avg
-        pr_target = settings_obj.weekly_study_pr_hours or 44.0
-        pr_ratio = min(1.0, current_week_hours / pr_target) if pr_target > 0 else 0.5
+        pr_target = settings_obj.weekly_study_pr_hours or 0
+        pr_ratio = min(1.0, current_week_hours / pr_target) if pr_target > 0 else 0
         academy_ratio = academy_rate / 100.0
         scoreboard_ratio = min(1.0, scoreboard_avg / 5.0)
 
@@ -286,6 +285,7 @@ class DashboardSummaryView(APIView):
         high_priority_pending = tasks.filter(~Q(status=TaskStatus.COMPLETED), priority='High').count()
 
         return Response({
+            'today': today.isoformat(),
             'settings': UserSettingsSerializer(settings_obj).data,
             'academy_standing': {
                 'current_execution': academy_rate,
